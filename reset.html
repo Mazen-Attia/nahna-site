@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Nahna – Neues Passwort</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  form { display: grid; gap: 12px; }
+  input { font: inherit; padding: 12px 14px; border-radius: 12px; border: 1px solid #ccc; }
+  button { font: inherit; font-weight: 600; padding: 12px; border: 0; border-radius: 24px; color: #fff;
+           background: linear-gradient(135deg, #E0567A, #B8386A); cursor: pointer; }
+  button:disabled { opacity: .6; }
+  .error { color: #c0392b; }
+  .ok { color: #2e7d32; font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <img src="icon.png" alt="">
+  <h1>Nahna · نحن</h1>
+  <p>Neues Passwort · New password · Nouveau mot de passe</p>
+</header>
+<main>
+  <section>
+    <p id="status">Einen Moment … · One moment … · Un instant …</p>
+    <form id="form" hidden>
+      <input id="pw1" type="password" autocomplete="new-password" minlength="8" required
+             placeholder="Neues Passwort · New password · Nouveau mot de passe">
+      <input id="pw2" type="password" autocomplete="new-password" minlength="8" required
+             placeholder="Wiederholen · Repeat · Répéter">
+      <button id="save" type="submit">Speichern · Save · Enregistrer</button>
+    </form>
+  </section>
+</main>
+<footer>© 2026 Mazen Attia</footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+  // The public anon key, the same one inside the app; row level security protects the data.
+  const client = supabase.createClient(
+    "https://pnnzraabhumshbvyxcau.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBubnpyYWFiaHVtc2hidnl4Y2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUxNzg5MjAsImV4cCI6MjExMDc1NDkyMH0.BNUW-2c_Ynp4hn01M1C9N1WmH15QcwVOZCrlM23xjN0",
+    { auth: { flowType: "implicit", detectSessionInUrl: true, persistSession: false } });
+
+  const status = document.getElementById("status");
+  const form = document.getElementById("form");
+
+  function show(text, cls) {
+    status.textContent = text;
+    status.className = cls || "";
+  }
+
+  const hash = new URLSearchParams(location.hash.slice(1));
+  if (hash.get("error")) {
+    show("Der Link ist abgelaufen oder wurde schon benutzt. Fordere in der App einen neuen an. · " +
+         "The link has expired or was already used. Request a new one in the app. · " +
+         "Le lien a expiré ou a déjà été utilisé. Demandes-en un nouveau dans l'app.", "error");
+  }
+
+  client.auth.onAuthStateChange((event, session) => {
+    if (session && !hash.get("error")) {
+      show("Wähle ein neues Passwort (mindestens 8 Zeichen). · Choose a new password (at least 8 characters). · " +
+           "Choisis un nouveau mot de passe (8 caractères minimum).");
+      form.hidden = false;
+    }
+  });
+
+  setTimeout(async () => {
+    const { data } = await client.auth.getSession();
+    if (!data.session && !hash.get("error")) {
+      show("Öffne diese Seite über den Link in der E-Mail. · Open this page through the link in the email. · " +
+           "Ouvre cette page avec le lien de l'e-mail.", "error");
+    }
+  }, 2500);
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const pw1 = document.getElementById("pw1").value;
+    const pw2 = document.getElementById("pw2").value;
+    if (pw1.length < 8 || pw1 !== pw2) {
+      show("Die Passwörter stimmen nicht überein oder sind zu kurz. · The passwords don't match or are too short. · " +
+           "Les mots de passe ne correspondent pas ou sont trop courts.", "error");
+      return;
+    }
+
+    const button = document.getElementById("save");
+    button.disabled = true;
+    const { error } = await client.auth.updateUser({ password: pw1 });
+    button.disabled = false;
+    if (error) {
+      show(error.message, "error");
+      return;
+    }
+
+    form.hidden = true;
+    show("Passwort geändert! Öffne jetzt Nahna und melde dich mit dem neuen Passwort an. · " +
+         "Password changed! Now open Nahna and sign in with the new password. · " +
+         "Mot de passe modifié ! Ouvre Nahna et connecte-toi avec le nouveau mot de passe.", "ok");
+    await client.auth.signOut();
+  });
+</script>
+</body>
+</html>
